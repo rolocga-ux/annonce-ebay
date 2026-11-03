@@ -1,8 +1,8 @@
 import json
-import anthropic
+import requests
 import streamlit as st
 
-MODEL = "claude-sonnet-5-5"
+MODEL = "gemini-2.5-flash"
 GARANTIES = [
     "Aucune garantie commerciale (garantie légale uniquement)",
     "30 jours", "3 mois", "6 mois", "1 an", "2 ans", "Autre…",
@@ -35,7 +35,6 @@ texte = st.text_area("Colle ici le texte de la page produit", height=220)
 
 
 def generer():
-    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
     prompt = f"""Tu es expert vendeur eBay France. Rédige une annonce eBay complète,
 optimisée pour le référencement et honnête, avec tes propres mots (ne recopie pas
 le texte source). N'invente AUCUNE caractéristique absente du texte.
@@ -59,11 +58,17 @@ Règles :
 Réponds UNIQUEMENT avec un JSON de cette forme :
 {{"titre": "", "sous_titre": "", "categorie": "", "caracteristiques": "",
 "description": "", "livraison": "", "mots_cles": "", "conseil_prix": ""}}"""
-    r = client.messages.create(
-        model=MODEL, max_tokens=2500,
-        messages=[{"role": "user", "content": prompt}],
+    r = requests.post(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent",
+        params={"key": st.secrets["GEMINI_API_KEY"]},
+        json={
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"responseMimeType": "application/json"},
+        },
+        timeout=90,
     )
-    t = r.content[0].text
+    r.raise_for_status()
+    t = r.json()["candidates"][0]["content"]["parts"][0]["text"]
     return json.loads(t[t.find("{"): t.rfind("}") + 1])
 
 
